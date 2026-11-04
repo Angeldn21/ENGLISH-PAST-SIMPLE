@@ -10,28 +10,44 @@
     </script>
 
     <script>
-      // Intercepta la llamada __jsonp para anular el bloqueo del trial
-      window.__jsonp = function(filename, data) {
-        if (typeof data === "string") {
-          try {
-            var decoded = JSON.parse(atob(data));
-            if (decoded.deliveryPolicy) {
-              decoded.deliveryPolicy.access = "allowed";
-              decoded.deliveryPolicy.reason = "none";
-              decoded.deliveryPolicy.accessExpiresAt = null;
+      // 1. Crear el interceptor global antes de cargar cualquier librería
+      window.__jsonpOriginal = window.__jsonp;
+      Object.defineProperty(window, '__jsonp', {
+        get: function() {
+          return function(filename, data) {
+            if (filename === "runtime-data.js" && data) {
+              if (typeof data === "string") {
+                try {
+                  data = JSON.parse(atob(data));
+                } catch(e) {}
+              }
+              if (typeof data === "object") {
+                data.deliveryPolicy = { status: "resolved", access: "allowed", protection: "none" };
+              }
             }
-            window.__jsonp(filename, decoded);
-            return;
-          } catch(e) {}
-        }
-      };
+            if (window.__jsonpOriginal) {
+              window.__jsonpOriginal(filename, data);
+            } else {
+              window.__lastJsonpCall = [filename, data];
+            }
+          };
+        },
+        set: function(fn) {
+          window.__jsonpOriginal = fn;
+          if (window.__lastJsonpCall) {
+            fn(window.__lastJsonpCall[0], window.__lastJsonpCall[1]);
+            window.__lastJsonpCall = null;
+          }
+        },
+        configurable: true
+      });
     </script>
-    
+
+    <script src="runtime-data.js"></script>
     <script src="lib/dist/7137cfb8.js"></script>
   </head>
   <body>
     <div id="app"></div>
-    <script src="runtime-data.js"></script>
     <script src="lib/rise/28b41e6c.js"></script>
   </body>
 </html>
