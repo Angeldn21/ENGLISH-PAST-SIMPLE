@@ -8,16 +8,30 @@
     <script type="application/json" id="__CONFIG__">
       {"assetTargetPrefixes":{"media":"assets","font":"lib/fonts"},"loadOnlyInLms":false,"surface":"web-export"}
     </script>
-    
+
     <script>
-      // Desactiva la verificación remota de licencia en memoria
-      window.deliveryPolicy = { status: "resolved", access: "allowed", protection: "none" };
+      // Intercepta la llamada __jsonp para anular el bloqueo del trial
+      window.__jsonp = function(filename, data) {
+        if (typeof data === "string") {
+          try {
+            var decoded = JSON.parse(atob(data));
+            if (decoded.deliveryPolicy) {
+              decoded.deliveryPolicy.access = "allowed";
+              decoded.deliveryPolicy.reason = "none";
+              decoded.deliveryPolicy.accessExpiresAt = null;
+            }
+            window.__jsonp(filename, decoded);
+            return;
+          } catch(e) {}
+        }
+      };
     </script>
     
     <script src="lib/dist/7137cfb8.js"></script>
   </head>
   <body>
     <div id="app"></div>
+    <script src="runtime-data.js"></script>
     <script src="lib/rise/28b41e6c.js"></script>
   </body>
 </html>
