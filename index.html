@@ -10,40 +10,46 @@
     </script>
 
     <script>
-      // 1. Crear el interceptor global antes de cargar cualquier librería
-      window.__jsonpOriginal = window.__jsonp;
-      Object.defineProperty(window, '__jsonp', {
-        get: function() {
-          return function(filename, data) {
-            if (filename === "runtime-data.js" && data) {
-              if (typeof data === "string") {
-                try {
-                  data = JSON.parse(atob(data));
-                } catch(e) {}
-              }
-              if (typeof data === "object") {
-                data.deliveryPolicy = { status: "resolved", access: "allowed", protection: "none" };
-              }
-            }
-            if (window.__jsonpOriginal) {
-              window.__jsonpOriginal(filename, data);
-            } else {
-              window.__lastJsonpCall = [filename, data];
-            }
-          };
-        },
-        set: function(fn) {
-          window.__jsonpOriginal = fn;
-          if (window.__lastJsonpCall) {
-            fn(window.__lastJsonpCall[0], window.__lastJsonpCall[1]);
-            window.__lastJsonpCall = null;
+      // Almacenador global para interceptar el jsonp antes de iniciar el reproductor
+      window.__jsonpData = {};
+      window.__jsonp = function(filename, data) {
+        if (filename === "runtime-data.js" && data) {
+          if (typeof data === "string") {
+            try { data = JSON.parse(atob(data)); } catch(e) {}
           }
-        },
-        configurable: true
-      });
+          if (typeof data === "object") {
+            data.deliveryPolicy = { status: "resolved", access: "allowed", protection: "none" };
+          }
+        }
+        window.__jsonpData[filename] = data;
+      };
     </script>
 
+    <!-- Cargar primero el archivo de datos -->
     <script src="runtime-data.js"></script>
+
+    <script>
+      // Restaurar el receptor antes de cargar los scripts pesados de Rise
+      (function() {
+        var originalData = window.__jsonpData["runtime-data.js"];
+        delete window.__jsonp;
+        
+        // Define el hook para cuando lib/dist se ejecute
+        Object.defineProperty(window, '__jsonp', {
+          get: function() {
+            return window.__jsonpHandler || function(file, d) {};
+          },
+          set: function(fn) {
+            window.__jsonpHandler = fn;
+            if (originalData) {
+              fn("runtime-data.js", originalData);
+            }
+          },
+          configurable: true
+        });
+      })();
+    </script>
+
     <script src="lib/dist/7137cfb8.js"></script>
   </head>
   <body>
